@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>BIST Mobil Analiz</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0b0e14;
+            color: #ffffff;
+            margin: 0;
+            padding: 15px;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        h1 { font-size: 22px; text-align: center; color: #00b2ff; margin-bottom: 15px; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
+        input { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #222630; background-color: #161a25; color: white; font-size: 16px; }
+        button { padding: 0 20px; border-radius: 10px; border: none; background-color: #00b2ff; color: white; font-weight: bold; font-size: 16px; }
+        .widget-container { background-color: #161a25; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .widget-title { font-size: 14px; color: #848e9c; margin-bottom: 12px; font-weight: bold; }
+        #chart-area { height: 350px; width: 100%; border-radius: 8px; overflow: hidden; }
+        #tech-area { height: 420px; width: 100%; border-radius: 8px; overflow: hidden; }
+        
+        /* Fiyat Öneri Kartı Tasarımı */
+        .price-signals {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .price-card {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .buy-card { background-color: rgba(0, 230, 118, 0.1); border: 1px solid #00e676; }
+        .sell-card { background-color: rgba(255, 59, 48, 0.1); border: 1px solid #ff3b30; }
+        .price-label { font-size: 12px; color: #848e9c; margin-bottom: 4px; }
+        .price-value { font-size: 18px; font-weight: bold; }
+        .buy-card .price-value { color: #00e676; }
+        .sell-card .price-value { color: #ff3b30; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📊 BIST Akıllı Analiz</h1>
+    
+    <div class="search-box">
+        <input type="text" id="hisseInput" value="YYAPI" placeholder="Hisse Kodu (Örn: THYAO)" oninput="this.value = this.value.toUpperCase()">
+        <button onclick="analizBaslat()">Analiz Et</button>
+    </div>
+
+    <div class="widget-container">
+        <div class="widget-title">🎯 Teknik Fiyat Seviyeleri (Pivot)</div>
+        <div id="pivot-area"></div>
+    </div>
+
+    <div class="widget-container">
+        <div class="widget-title">📈 Canlı Teknik Grafik</div>
+        <div id="chart-area"></div>
+    </div>
+
+    <div class="widget-container">
+        <div class="widget-title">🤖 İndikatör Al-Sat Durumu</div>
+        <div id="tech-area"></div>
+    </div>
+</div>
+
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script type="text/javascript">
+    window.onload = function() {
+        analizBaslat();
+    };
+
+    function analizBaslat() {
+        let hisse = document.getElementById('hisseInput').value.trim();
+        if(!hisse) return alert("Lütfen hisse kodu girin!");
+
+        // Grafik hatasını çözmek için sembol formatını MATRIKS/BIST uyumlu hale getiriyoruz
+        let tamSembol = "BIST:" + hisse;
+
+        // 1. Grafik Widget'ını Güncelle
+        new TradingView.widget({
+            "width": "100%",
+            "height": 350,
+            "symbol": tamSembol,
+            "interval": "D",
+            "timezone": "Europe/Istanbul",
+            "theme": "dark",
+            "style": "1",
+            "locale": "tr",
+            "toolbar_bg": "#161a25",
+            "enable_publishing": false,
+            "hide_side_toolbar": true,
+            "allow_symbol_change": false,
+            "container_id": "chart-area"
+        });
+
+        // 2. Teknik Analiz İbresini Güncelle
+        document.getElementById('tech-area').innerHTML = ""; 
+        let scriptTech = document.createElement('script');
+        scriptTech.type = 'text/javascript';
+        scriptTech.src = 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
+        scriptTech.async = true;
+        scriptTech.innerHTML = JSON.stringify({
+            "interval": "1D",
+            "width": "100%",
+            "isTransparent": false,
+            "height": 420,
+            "symbol": tamSembol,
+            "showIntervalTabs": true,
+            "locale": "tr",
+            "colorTheme": "dark"
+        });
+        document.getElementById('tech-area').appendChild(scriptTech);
+
+        // 3. Al / Sat Fiyat Seviyeleri (Pivot Noktaları) Widget'ını Güncelle
+        document.getElementById('pivot-area').innerHTML = "";
+        let scriptPivot = document.createElement('script');
+        scriptPivot.type = 'text/javascript';
+        scriptPivot.src = 'https://s3.tradingview.com/external-embedding/embed-widget-financials.js';
+        scriptPivot.async = true;
+        scriptPivot.innerHTML = JSON.stringify({
+            "symbol": tamSembol,
+            "colorTheme": "dark",
+            "isTransparent": false,
+            "largeChartUrl": "",
+            "displayMode": "regular",
+            "width": "100%",
+            "height": 160,
+            "locale": "tr"
+        });
+        document.getElementById('pivot-area').appendChild(scriptPivot);
+    }
+</script>
+
+</body>
+</html>
